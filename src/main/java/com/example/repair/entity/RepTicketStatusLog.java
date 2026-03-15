@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("rep_ticket_status_logs")
+@TableName(value = "rep_ticket_status_logs", excludeProperty = "updatedAt")
 @Schema(description = "工单状态变更日志")
 public class RepTicketStatusLog extends BaseEntity {
 
