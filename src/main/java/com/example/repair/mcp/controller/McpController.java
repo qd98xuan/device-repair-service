@@ -163,7 +163,7 @@ public class McpController {
     }
 
     @Operation(summary = "MCP消息处理", description = "处理MCP协议的消息请求")
-    @PostMapping("/messages")
+    @PostMapping({"", "/messages"})
     public McpMessage handleMessage(@RequestBody McpMessage message) {
         log.info("收到MCP消息: method={}", message.getMethod());
 

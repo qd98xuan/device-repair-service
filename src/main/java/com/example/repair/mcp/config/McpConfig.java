@@ -17,6 +17,7 @@ public class McpConfig {
     public FilterRegistrationBean<McpAuthFilter> mcpAuthFilterRegistration(McpAuthFilter filter) {
         FilterRegistrationBean<McpAuthFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(filter);
+        registration.addUrlPatterns("/mcp");
         registration.addUrlPatterns("/mcp/*");
         registration.setName("mcpAuthFilter");
         registration.setOrder(1);

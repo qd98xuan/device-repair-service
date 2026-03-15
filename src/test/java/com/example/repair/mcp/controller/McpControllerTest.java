@@ -89,6 +89,18 @@ class McpControllerTest {
     }
 
     @Test
+    void shouldAllowInitializeFromMcpRootPath() throws Exception {
+        mockMvc.perform(post("/mcp")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"jsonrpc":"2.0","id":"1","method":"initialize","params":{}}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.serverInfo.name").value("test-mcp-server"));
+    }
+
+    @Test
     void shouldReturnExpandedTicketDetailIncludingProcessLogs() throws Exception {
         RepTicket ticket = new RepTicket();
         ticket.setId(100L);
