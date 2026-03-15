@@ -17,6 +17,9 @@ import java.io.IOException;
 @Component
 public class McpAuthFilter extends OncePerRequestFilter {
 
+    private static final String BEARER_PREFIX = "Bearer ";
+    private static final String API_KEY_HEADER = "X-API-Key";
+
     /**
      * MCP认证Token
      */
@@ -57,22 +60,20 @@ public class McpAuthFilter extends OncePerRequestFilter {
             }
         }
 
-        // 获取Authorization头
-        String authHeader = request.getHeader("Authorization");
-
-        // 检查Token是否存在
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            sendUnauthorizedResponse(response, "Missing or invalid Authorization header");
+        String token = resolveToken(request);
+        if (token == null || token.isBlank()) {
+            sendUnauthorizedResponse(response, "Missing or invalid token");
             return;
         }
 
-        // 提取Token
-        String token = authHeader.substring(7);
-
         // 验证Token
-        if (mcpToken == null || mcpToken.isEmpty()) {
-            // 如果未配置Token，直接放行（开发环境）
-            filterChain.doFilter(request, response);
+        if (mcpToken == null || mcpToken.isBlank()) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(
+                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"MCP auth token is not configured\"},\"id\":null}"
+            );
             return;
         }
 
@@ -85,6 +86,20 @@ public class McpAuthFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    private String resolveToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            return authHeader.substring(BEARER_PREFIX.length()).trim();
+        }
+
+        String apiKey = request.getHeader(API_KEY_HEADER);
+        if (apiKey != null && !apiKey.isBlank()) {
+            return apiKey.trim();
+        }
+
+        return null;
+    }
+
     /**
      * 发送未授权响应
      */
@@ -92,6 +107,7 @@ public class McpAuthFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
+        response.setHeader("WWW-Authenticate", "Bearer");
 
         String jsonResponse = String.format(
                 "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"%s\"},\"id\":null}",
