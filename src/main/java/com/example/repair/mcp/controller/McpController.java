@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -27,6 +28,10 @@ public class McpController {
 
     private final TicketService ticketService;
     private final ObjectMapper objectMapper;
+    @Value("${mcp.server.name:device-repair-mcp-server}")
+    private String serverName;
+    @Value("${mcp.server.version:1.0.0}")
+    private String serverVersion;
 
     /**
      * 工具列表
@@ -104,7 +109,39 @@ public class McpController {
                 updateStatusSchema
         ));
 
-        // 工具5: 评价工单
+        // 工具5: 分配工单
+        Map<String, Object> assignTicketSchema = new HashMap<>();
+        assignTicketSchema.put("type", "object");
+        assignTicketSchema.put("properties", Map.of(
+                "ticketId", Map.of("type", "integer", "description", "工单ID"),
+                "assignedTo", Map.of("type", "string", "description", "处理人姓名"),
+                "assignedToId", Map.of("type", "integer", "description", "处理人ID")
+        ));
+        assignTicketSchema.put("required", List.of("ticketId", "assignedTo", "assignedToId"));
+
+        TOOLS.add(new McpTool(
+                "assign_ticket",
+                "将工单分配给维修人员。",
+                assignTicketSchema
+        ));
+
+        // 工具6: 撤销工单
+        Map<String, Object> cancelTicketSchema = new HashMap<>();
+        cancelTicketSchema.put("type", "object");
+        cancelTicketSchema.put("properties", Map.of(
+                "ticketId", Map.of("type", "integer", "description", "工单ID"),
+                "cancelerName", Map.of("type", "string", "description", "撤销人姓名"),
+                "cancelReason", Map.of("type", "string", "description", "撤销原因")
+        ));
+        cancelTicketSchema.put("required", List.of("ticketId", "cancelerName", "cancelReason"));
+
+        TOOLS.add(new McpTool(
+                "cancel_ticket",
+                "撤销未处理完成的工单。",
+                cancelTicketSchema
+        ));
+
+        // 工具7: 评价工单
         Map<String, Object> evaluateSchema = new HashMap<>();
         evaluateSchema.put("type", "object");
         evaluateSchema.put("properties", Map.of(
@@ -194,8 +231,8 @@ public class McpController {
                 "tools", Map.of()
         ));
         result.put("serverInfo", Map.of(
-                "name", "device-repair-mcp-server",
-                "version", "1.0.0"
+                "name", serverName,
+                "version", serverVersion
         ));
 
         response.setResult(result);
@@ -240,6 +277,12 @@ public class McpController {
                 break;
             case "update_ticket_status":
                 result = updateTicketStatus(arguments);
+                break;
+            case "assign_ticket":
+                result = assignTicket(arguments);
+                break;
+            case "cancel_ticket":
+                result = cancelTicket(arguments);
                 break;
             case "evaluate_ticket":
                 result = evaluateTicket(arguments);
@@ -297,7 +340,8 @@ public class McpController {
         int pageNum = arguments.get("pageNum") != null ? (Integer) arguments.get("pageNum") : 1;
         int pageSize = arguments.get("pageSize") != null ? (Integer) arguments.get("pageSize") : 10;
 
-        var page = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageNum, pageSize);
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<RepTicket> page =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageNum, pageSize);
         var pageResult = ticketService.getTicketPage(page, status, priority, requesterName);
 
         StringBuilder sb = new StringBuilder();
@@ -363,6 +407,17 @@ public class McpController {
             }
         }
 
+        if (!processLogs.isEmpty()) {
+            sb.append("\n=== 处理记录 ===\n");
+            for (var log : processLogs) {
+                sb.append(String.format("%s: [%s] %s - %s\n",
+                        log.getCreatedAt(),
+                        log.getProcessType(),
+                        log.getOperatorName(),
+                        log.getContent()));
+            }
+        }
+
         return McpToolCallResult.text(sb.toString());
     }
 
@@ -385,6 +440,50 @@ public class McpController {
                 ticket.getTicketNo(),
                 ticket.getStatus(),
                 operatorName
+        );
+
+        return McpToolCallResult.text(message);
+    }
+
+    /**
+     * 分配工单
+     */
+    @SuppressWarnings("unchecked")
+    private McpToolCallResult assignTicket(Map<String, Object> arguments) {
+        Long ticketId = ((Number) arguments.get("ticketId")).longValue();
+        String assignedTo = (String) arguments.get("assignedTo");
+        Long assignedToId = ((Number) arguments.get("assignedToId")).longValue();
+
+        ticketService.assignTicket(ticketId, assignedTo, assignedToId);
+
+        RepTicket ticket = ticketService.getTicketById(ticketId);
+        String message = String.format(
+                "工单分配成功！\n工单编号：%s\n处理人：%s\n当前状态：%s",
+                ticket.getTicketNo(),
+                assignedTo,
+                ticket.getStatus()
+        );
+
+        return McpToolCallResult.text(message);
+    }
+
+    /**
+     * 撤销工单
+     */
+    @SuppressWarnings("unchecked")
+    private McpToolCallResult cancelTicket(Map<String, Object> arguments) {
+        Long ticketId = ((Number) arguments.get("ticketId")).longValue();
+        String cancelerName = (String) arguments.get("cancelerName");
+        String cancelReason = (String) arguments.get("cancelReason");
+
+        ticketService.cancelTicket(ticketId, cancelerName, cancelReason);
+
+        RepTicket ticket = ticketService.getTicketById(ticketId);
+        String message = String.format(
+                "工单撤销成功！\n工单编号：%s\n当前状态：%s\n撤销人：%s",
+                ticket.getTicketNo(),
+                ticket.getStatus(),
+                cancelerName
         );
 
         return McpToolCallResult.text(message);

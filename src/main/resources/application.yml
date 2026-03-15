@@ -41,11 +41,11 @@ springdoc:
 # MCP服务配置
 mcp:
   auth:
-    # MCP服务认证Token，建议生产环境设置
-    token: sk-mcp-device-repair-2024
+    # MCP服务认证Token，请通过环境变量或启动参数注入，例如 MCP_AUTH_TOKEN
+    token: ${MCP_AUTH_TOKEN:}
   server:
-    name: device-repair-mcp-server
-    version: 1.0.0
+    name: ${MCP_SERVER_NAME:device-repair-mcp-server}
+    version: ${MCP_SERVER_VERSION:1.0.0}
 
 # 日志配置
 logging:
