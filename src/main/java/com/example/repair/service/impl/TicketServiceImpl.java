@@ -255,7 +255,7 @@ public class TicketServiceImpl extends ServiceImpl<RepTicketMapper, RepTicket> i
         log.setOperatorName(operatorName);
         log.setAction(action);
         log.setComment(comment);
-        statusLogMapper.insert(log);
+        statusLogMapper.insertStatusLog(log);
     }
 
     /**
