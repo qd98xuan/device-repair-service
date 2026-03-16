@@ -33,10 +33,6 @@ springdoc:
   api-docs:
     path: /v3/api-docs
     enabled: true
-  group-configs:
-    - group: 'default'
-      paths-to-match: '/api/**'
-      packages-to-scan: com.example.repair.controller
 
 # MCP服务配置
 mcp:
