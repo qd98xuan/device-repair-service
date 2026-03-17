@@ -162,7 +162,7 @@ public class McpController {
         ));
     }
 
-    @Operation(summary = "MCP消息处理", description = "处理MCP协议的消息请求")
+    @Operation(summary = "MCP消息处理", description = "处理 MCP 协议消息，支持 initialize、tools/list、tools/call，请求地址可使用 /mcp 或 /mcp/messages")
     @PostMapping({"", "/messages"})
     public McpMessage handleMessage(@RequestBody McpMessage message) {
         log.info("收到MCP消息: method={}", message.getMethod());
